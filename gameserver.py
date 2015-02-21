@@ -1,5 +1,6 @@
 import socket
 import select
+import threading
 # import sys
 
 # Messages:
@@ -41,7 +42,7 @@ class Player():
 
 
 class GameServer(object):
-    def __init__(self, port=9009, max_num_players=5):
+    def __init__(self, port=9011, max_num_players=5):
         self.listener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # Bind to localhost - set to external ip to connect
         # from other computers
@@ -105,6 +106,60 @@ class GameServer(object):
                 send.append(pos)
             self.listener.sendto('|'.join(send), addr)
 
+
+class Dispatcher(threading.Thread):
+    """Dispatcher for new incoming connections
+    """
+    def __init__(self, port=9010):
+        threading.Thread.__init__(self)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Bind to localhost - set to external ip to connect
+        # from other computers
+        self.sock.bind(("127.0.0.1", port))
+        self.read_list = [self.sock]
+        self.write_list = []
+        self.exit = False
+
+    def run(self):
+        while not self.exit:
+            # blocking select
+            readable, writable, exceptional = select.select(
+                self.read_list,
+                self.write_list,
+                [],
+                0)
+
+            # Parses incoming message
+            self.parse_message(readable)
+            # Notifies players of changes
+            # self.update_players()
+
+    def exit_request(self):
+        self.exit = True
+
+    def parse_message(self, readable):
+        """Parses incoming message from socket
+        """
+        for f in readable:
+            if f is self.sock:
+                msg, addr = f.recvfrom(32)
+                if len(msg) >= 1:
+                    cmd = msg[0]
+                    if cmd == "c":  # New Connection
+                        self.sock.sendto("9011", addr)
+                        # self.players[addr] = Player(addr)
+                    else:
+                        print "Unexpected: {0}".format(msg)
+
+
 if __name__ == "__main__":
+    # Start dispatcher for incoming connections
+    d = Dispatcher()
+    d.start()
+
+    # Start GameServer
     g = GameServer()
     g.run()
+
+    # Ask dispatcher to stop
+    d.exit_request()

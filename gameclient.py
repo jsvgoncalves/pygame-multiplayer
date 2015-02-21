@@ -7,7 +7,7 @@ import random
 
 
 class GameClient(object):
-    def __init__(self, addr="127.0.0.1", serverport=9009):
+    def __init__(self, addr="127.0.0.1", serverport=9011):
         self.clientport = random.randrange(8000, 8999)
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # Bind to localhost - set to external ip to connect
@@ -89,6 +89,26 @@ class GameClient(object):
             self.conn.sendto("d", (self.addr, self.serverport))
 
 
+def launcher(addr="127.0.0.1", serverport=9010):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    clientport = random.randrange(8000, 8999)
+    sock.bind(("127.0.0.1", clientport))
+    sock.sendto("c", (addr, serverport))
+
+    while True:
+        readable, writable, exceptional = (
+                        select.select([sock], [], [], 0)
+                    )
+        for f in readable:
+            if f is sock:
+                msg, addr = f.recvfrom(32)
+                print(msg)
+                return msg
+
+
 if __name__ == "__main__":
+    port = launcher()
+    print("Port is " + port)
+
     g = GameClient()
     g.run()
