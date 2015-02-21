@@ -110,5 +110,5 @@ if __name__ == "__main__":
     port = launcher()
     print("Port is " + port)
 
-    g = GameClient()
+    g = GameClient("127.0.0.1", int(port))
     g.run()
